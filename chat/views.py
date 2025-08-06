@@ -1,6 +1,7 @@
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from interventions.models import Incident
+from datetime import datetime
 
 # Structure d'état de la conversation
 user_states = {}
@@ -11,7 +12,7 @@ def chatbot_view(request):
     user_id = request.data.get('user_id', 'default')  # pour gérer plusieurs utilisateurs
 
     if user_id not in user_states:
-        user_states[user_id] = {"state": "initial", "description": "", "duree": ""}
+        user_states[user_id] = {"state": "initial", "description": "", "duree": 0}
 
     state = user_states[user_id]
 
@@ -26,28 +27,46 @@ def chatbot_view(request):
     if message == "je veux créer un incident":
         state["state"] = "awaiting_description"
         return Response({
-            "response": "Tu peux donner la description de l'incident.",
+            "response": "Tu peux donner la description de l'incident."
         })
 
     if state["state"] == "awaiting_description":
-        state["description"] = message
+        state["description"] = request.data.get('message')  # garde le texte original
         state["state"] = "awaiting_duree"
         return Response({
-            "response": "Quelle est la durée estimée pour résoudre cet incident ?"
+            "response": "Quelle est la durée estimée pour résoudre cet incident SLA ?"
         })
 
     if state["state"] == "awaiting_duree":
-        state["duree"] = message
+        try:
+            sla = int(request.data.get('message'))
+        except ValueError:
+            return Response({
+                "response": "⛔ Merci de saisir un nombre entier pour la durée (ex: 4)."
+            })
 
-        # Création de l'incident
-        Incident.objects.create(description=state["description"], sla=state["duree"])
+        state["duree"] = sla
 
-        # Réinitialisation
-        user_states[user_id] = {"state": "initial", "description": "", "duree": ""}
+        # ✅ Création de l'incident
+        try:
+            Incident.objects.create(
+                description=state["description"],
+                sla=state["duree"],
+                date_creation=datetime.now(),
+                statut="En attente",
+                utilisateur_id=1  # à adapter selon ton app
+            )
+        except Exception as e:
+            return Response({
+                "response": f"❌ Erreur lors de la création de l'incident : {str(e)}"
+            })
+
+        # 🔁 Réinitialisation
+        user_states[user_id] = {"state": "initial", "description": "", "duree": 0}
 
         return Response({
-            "response": "Incident bien enregistré avec succès ✅",
-            "refresh": True  # pour que React déclenche le rafraîchissement
+            "response": "✅ Incident bien enregistré avec succès !",
+            "created": True
         })
 
     return Response({

@@ -79,10 +79,20 @@ WSGI_APPLICATION = 'chatbot_backend.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'gestion_incidents',
+        'USER': 'root',
+        'PASSWORD': 'Chaimae2003*',
+        'HOST': 'localhost',
+        'PORT': '3308',
+        'OPTIONS': {
+            'charset': 'utf8mb4',
+            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+        },
     }
 }
+
+
 
 
 # Password validation
